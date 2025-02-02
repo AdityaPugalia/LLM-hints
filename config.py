@@ -1,0 +1,3 @@
+USER = 'adityakumarpugalia'
+DBASE = 'tpch'
+

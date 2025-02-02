@@ -1,0 +1,26 @@
+{
+    "shared_buffers": {
+        "name": "shared_buffers",
+        "setting": "16384",
+        "unit": "8kB",
+        "context": "postmaster"
+    },
+    "work_mem": {
+        "name": "work_mem",
+        "setting": "4096",
+        "unit": "kB",
+        "context": "user"
+    },
+    "hash_mem_multiplier": {
+        "name": "hash_mem_multiplier",
+        "setting": "1",
+        "unit": null,
+        "context": "user"
+    },
+    "temp_file_limit": {
+        "name": "temp_file_limit",
+        "setting": "-1",
+        "unit": "kB",
+        "context": "superuser"
+    }
+}
