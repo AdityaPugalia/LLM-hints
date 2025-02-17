@@ -1,0 +1,16 @@
+query
+SELECT * FROM users WHERE age > 30
+"SELECT name, email FROM customers WHERE country = 'US'"
+UPDATE orders SET status = 'shipped' WHERE order_id = 1234
+DELETE FROM users WHERE last_login < '2022-01-01'
+"INSERT INTO products (name, price, stock) VALUES ('Laptop', 1200, 10)"
+SELECT product_id FROM orders WHERE status = 'pending'
+SELECT * FROM employees WHERE department = 'Engineering'
+UPDATE inventory SET stock = stock - 1 WHERE product_id = 5678
+DELETE FROM transactions WHERE status = 'failed'
+"INSERT INTO customers (name, email) VALUES ('John Doe', 'john@example.com')"
+SELECT COUNT(*) FROM sales WHERE date >= '2023-01-01'
+UPDATE accounts SET balance = balance - 100 WHERE account_id = 9999
+SELECT DISTINCT category FROM products WHERE stock > 0
+SELECT order_id FROM orders WHERE customer_id = 42 AND status = 'completed'
+DELETE FROM logs WHERE event_type = 'error' AND timestamp < '2023-01-01'

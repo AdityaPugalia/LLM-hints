@@ -22,10 +22,16 @@ class Graph:
             rel_name = plan_tree.get('Relation Name', None)
             index_name = plan_tree.get('Index Name', None)
             node_filter = plan_tree.get('Filter', None)
-            hash_cond = plan_tree.get('hash_cond', None)
-            merge_cond = plan_tree.get('merge_cond', None)
+            join_filter = plan_tree.get('Join Filter', None)
+            hash_cond = plan_tree.get('Hash Cond', None)
+            merge_cond = plan_tree.get('Merge Cond', None)
             index_cond = plan_tree.get('Index Cond', None)
-            width = plan_tree.get('width', 0)
+            width = plan_tree.get('Plan Width', 0)
+            parent_hash = False
+            if parent_id != None:
+                if self.nodes[parent_id]['label'] == 'Hash':
+                    parent_hash = True
+
             node_info = {
                 'parent id' : parent_id,
                 'id': node_id,
@@ -34,10 +40,11 @@ class Graph:
                 'Planned rows': rows,
                 'Relation Name': rel_name,
                 'Index Name': index_name,
-                'Filter' : node_filter,
+                'Filter' : node_filter if node_filter else join_filter,
                 'Join Condition' : hash_cond if hash_cond is not None else merge_cond,
                 'Index Condition' : index_cond,
-                'Width' : width
+                'Width' : width,
+                'Parent Hash': parent_hash
             }
             # print(f"Appending node: {node_info}")
             self.nodes.append(node_info)

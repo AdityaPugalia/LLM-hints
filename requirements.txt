@@ -1,0 +1,12 @@
+faiss-cpu
+joblib
+networkx
+numpy
+ollama
+openai
+pandas
+psycopg2
+psycopg2_binary
+scikit_learn
+torch
+transformers
