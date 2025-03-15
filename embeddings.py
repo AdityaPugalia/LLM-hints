@@ -47,7 +47,6 @@ class nodeEmbedder:
         
         cls_embedding = outputs.last_hidden_state[:, 0, :].cpu().tolist()
 
-        torch.mps.empty_cache()
         # Singular value embedding
         return cls_embedding
      
@@ -86,9 +85,9 @@ class nodeEmbedder:
         reducer = PCAEmbeddingReducer(variance_threshold= variance)
         if self.pca_fit:
             data = reducer.fit(data, transform= fit_transform)
-            reducer.save('models/PCA_node_embeddings.pkl')
+            reducer.save(config.PCA)
         else:
-            reducer.load('models/PCA_node_embeddings.pkl')
+            reducer.load(config.PCA)
             data = reducer.transform(data)
         return data
 
@@ -107,13 +106,13 @@ class nodeEmbedder:
         unique_queries = 0
         
         for i, query in enumerate(batch_of_queries):
+            
             flat_nodes.extend(query)  # Flatten nodes
             query_ids[i] = len(query)  # Assign query index to each node
             unique_queries += 1
 
         # Convert to Pandas DataFrame for efficient vectorized operations
         df = pd.DataFrame(flat_nodes)
-
         # Extract numeric fields (Vectorized)
         cumulative_costs = df['Cummulative Cost'].to_numpy(dtype=float)
         planned_rows = df['Planned rows'].to_numpy(dtype=float)

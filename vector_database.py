@@ -8,6 +8,7 @@ import torch
 from sklearn.decomposition import PCA
 import pickle
 
+
 class VectorDatabase:
     def __init__(
         self, 
@@ -109,7 +110,7 @@ class VectorDatabase:
             conn.close()
         print('number of indices: ', self.index.ntotal)
 
-    def search(self, query = None, query_embedding: Optional[List] = None, k: int = 1, threshold : Optional[float] = None) -> pd.DataFrame:
+    def search(self, query = None, query_embedding: Optional[List] = None, k: int = 1, threshold : float = Optional) -> pd.DataFrame:
         """
         Searches for the top-k most similar texts.
 
@@ -236,15 +237,4 @@ if __name__ == '__main__':
 
         # Convert to list of embeddings
         return reduced_embeddings
-    
-    df = pd.read_csv('traindataset/Dummy_Queries.csv')
-    print(len(df['query']))
-    embeddings = bertEmbedding(df['query'].tolist())
-    print(len(embeddings))
 
-    vd = VectorDatabase('data/dummy_index.faiss', 12, 'cosine', 'data/dummy_queries.sqlite', ['query'], None)
-    #vd.add_vectors(embeddings= embeddings, metadata= df)
-    query_embedding= bertEmbedding('SELECT * FROM employees WHERE name = \'stephan\'', train_pca= False)
-    print(query_embedding)
-    results = vd.search(query_embedding=query_embedding, threshold= 0.6)
-    print(results)
