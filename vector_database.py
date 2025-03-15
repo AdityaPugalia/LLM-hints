@@ -109,7 +109,7 @@ class VectorDatabase:
             conn.close()
         print('number of indices: ', self.index.ntotal)
 
-    def search(self, query = None, query_embedding: Optional[List] = None, k: int = 1) -> pd.DataFrame:
+    def search(self, query = None, query_embedding: Optional[List] = None, k: int = 1, threshold : Optional[float] = None) -> pd.DataFrame:
         """
         Searches for the top-k most similar texts.
 
@@ -117,42 +117,66 @@ class VectorDatabase:
         :param k: Number of top results to return.
         :return: List of dictionaries containing matching texts and distances.
         """
-        # Generate embedding for query
-        if query_embedding is not None:
-            pass
-        elif query is not None and self.model is not None:
-            query_embedding = self.model.encode(query).reshape(1, -1).astype("float32")
+        try:
+            # Generate embedding for query
+            if query_embedding is not None:
+                pass
+            elif query is not None and self.model is not None:
+                query_embedding = self.model.encode(query).reshape(1, -1).astype("float32")
 
-        # Normalize if using cosine similarity
-        if self.metric == "cosine":
-            query_embedding = np.ascontiguousarray(query_embedding, dtype=np.float32)
-            faiss.normalize_L2(query_embedding)
+            # Normalize if using cosine similarity
+            if self.metric == "cosine":
+                query_embedding = np.ascontiguousarray(query_embedding, dtype=np.float32)
+                faiss.normalize_L2(query_embedding)
 
-        # Perform FAISS search
-        distances, indices = self.index.search(query_embedding, k)
+            # If a threshold is provided, attempt range search first
+            if threshold is not None:
+                lims, distances, indices = self.index.range_search(query_embedding, threshold)
+                idx_tuple = tuple(indices.tolist())
 
-        if self.storage_path:
-            conn = sqlite3.connect(self.storage_path)
-            cursor = conn.cursor()
-        else:
-            return None
-        idx_tuple = tuple(indices[0].tolist())
-        idx_tuple = tuple(x + 1 for x in idx_tuple)
-        results = []
+                # If no results found (lims[0] == lims[1]), fallback to top-k search
+                if lims[0] == lims[1]:
+                    distances, indices = self.index.search(query_embedding, k)
+                    idx_tuple = tuple(indices[0].tolist())
+                    distances = distances[0]
 
-        if idx_tuple is not None:
-            conn = sqlite3.connect(self.storage_path)
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT * FROM metadata WHERE id IN ({', '.join(['?']*len(idx_tuple))})", idx_tuple)
-            fetched_results = cursor.fetchall()
-            conn.close()
-            # Convert results into a dictionary for quick lookup
-            results = pd.DataFrame(fetched_results, columns=["id"] + self.metadata_columns)
-            # Construct final result list, maintaining FAISS order
-            results['distance']= distances[0].tolist()
-            return results
-        else:
-            return None
+            else:
+                # Use top-k search directly if no threshold is provided
+                distances, indices = self.index.search(query_embedding, k)
+                idx_tuple = tuple(indices[0].tolist())
+                distances = distances[0]
+            
+
+            if self.storage_path:
+                conn = sqlite3.connect(self.storage_path)
+                cursor = conn.cursor()
+            else:
+                return None
+            idx_tuple = tuple(x + 1 for x in idx_tuple)
+            results = []
+
+            if idx_tuple is not None:
+                conn = sqlite3.connect(self.storage_path)
+                cursor = conn.cursor()
+                cursor.execute(f"SELECT * FROM metadata WHERE id IN ({', '.join(['?']*len(idx_tuple))})", idx_tuple)
+                fetched_results = cursor.fetchall()
+                conn.close()
+                # Convert fetched results into a dictionary {id: row_data}
+                metadata_dict = {row[0]: row for row in fetched_results}  # Assuming ID is the first column
+
+                # Reorder results to match FAISS order
+                ordered_results = [metadata_dict[idx] for idx in idx_tuple if idx in metadata_dict]
+
+                # Convert to DataFrame
+                results = pd.DataFrame(ordered_results, columns=["id"] + self.metadata_columns)
+
+                # Add distances in FAISS order
+                results["distance"] = distances[:len(results)].tolist()
+                return results
+            else:
+                return None
+        except Exception as e:
+            print(f"The following error occured while retreiving data: {e}")
         
 
     def save_index(self):
@@ -220,7 +244,7 @@ if __name__ == '__main__':
 
     vd = VectorDatabase('data/dummy_index.faiss', 12, 'cosine', 'data/dummy_queries.sqlite', ['query'], None)
     #vd.add_vectors(embeddings= embeddings, metadata= df)
-    query_embedding= bertEmbedding('SELECT * FROM STUDENTS WHERE id = 45 and age > 18', train_pca= False)
+    query_embedding= bertEmbedding('SELECT * FROM employees WHERE name = \'stephan\'', train_pca= False)
     print(query_embedding)
-    results = vd.search(query_embedding=query_embedding, k = 2)
+    results = vd.search(query_embedding=query_embedding, threshold= 0.6)
     print(results)

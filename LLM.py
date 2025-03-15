@@ -4,6 +4,9 @@ import openai
 import config
 import os
 import json
+from db import Database
+from qep import Graph
+import pandas as pd
 
 class LLM:
     def __init__(self):
@@ -81,6 +84,22 @@ class LLM:
         hints = self.parseResponse(response)
         return response, hints + query
     
+    def get_n_hints(self, query : str, qep : dict, edges = list, n : int = 5):
+        qep_str = json.dumps(qep)
+        edges_str = json.dumps(edges)
+        message = "".join((
+                    f"Given the above instructions your role is to provide the top {n} different hint sets for the following query which could improve its execution time: \n"
+                    f"The query is as follows: \n{query}\n"
+                    f"The qep is as follows: \n{qep_str}\n"
+                    f"The edges are as follows: \n{edges_str}\n"
+                    f"Make sure that each of the hintsets are not exactly identical. the format to follow is : hintset1 | hintset2 | ... | hintsetn"
+                ))
+        response = self.askLLM(message)
+        hintsets = self.parse_n_responses(response)
+        for i in range (len(hintsets)):
+            hintsets[i] += query
+        return response, hintsets
+    
     def parseResponse(self, response: str):
         hints = response.split(';')
         final_hint = '/* ' 
@@ -96,9 +115,26 @@ class LLM:
                 final_hint += f"{node_hint[1]} "
         final_hint += '*/ '
         return final_hint
+    
+    def parse_n_responses(self, response: str):
+        hintsets = response.split('|')
+        for i in range(len(hintsets)):
+            hintsets[i] = self.parseResponse(hintsets[i])
+        return hintsets
 
 if __name__ == "__main__":
     model = LLM()
-    message = 'What is the Capital of India?'
-    answer = model.ask_llm(message)
-    print(answer)
+    command = 'SELECT COUNT(*) FROM customer INNER JOIN orders ON customer.c_custkey = orders.o_custkey WHERE o_orderdate > \'2015-01-01\';'
+    db = Database(user= config.USER, dbname= config.DBASE)
+    db.connect()
+    qep, _, _, _, error = db.getQep(command)
+    g = Graph()
+    g.parseQep(qep)
+    # print(g.nodes, g.edges)
+    response, hintsets = model.get_n_hints(command, g.nodes, g.edges)
+    df = pd.DataFrame({'hints': hintsets})
+    for hint in hintsets:
+        print(hint, '\n')
+    db.close()
+    # answer = model.ask_llm(message)
+    # print(answer)

@@ -11,7 +11,7 @@ from PCA import PCAEmbeddingReducer
 import pickle
 
 class nodeEmbedder:
-    def __init__(self, batch_size: int, device : str = 'cpu', pca_fit : bool = False):
+    def __init__(self, batch_size: int, device = torch.device('cpu'), pca_fit : bool = False):
         self.batch_size = batch_size
         self.device = device
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -82,8 +82,8 @@ class nodeEmbedder:
         
         return config_in_kb
     
-    def reduce_embeddings(self, data, fit_transform : bool = True):
-        reducer = PCAEmbeddingReducer()
+    def reduce_embeddings(self, data, fit_transform : bool = True, variance = 0.9):
+        reducer = PCAEmbeddingReducer(variance_threshold= variance)
         if self.pca_fit:
             data = reducer.fit(data, transform= fit_transform)
             reducer.save('models/PCA_node_embeddings.pkl')
@@ -160,7 +160,7 @@ class nodeEmbedder:
 
         if self.pca_fit == False:
             features = self.reduce_embeddings(features)
-            self.formatted_output(features, query_ids, unique_queries)
+            return self.formatted_output(features, query_ids, unique_queries)
         else:
             return [features]
     
@@ -174,17 +174,17 @@ class nodeEmbedder:
             counter += add
         return query_tree_features
         
-    def train_pca(self, data):
+    def train_pca(self, data, variance = 0.9):
         output = self.batch_processor(data)
         output = np.vstack(output)
-        print(output)
-        output = self.reduce_embeddings(output, False)
+        # print(output)
+        output = self.reduce_embeddings(output, False, variance)
 
     
 
 if __name__ == '__main__':
     # commands = pd.read_csv('traindataset/queries_tpch_train.csv')['original_sql'][1:4]
-    node_emb = nodeEmbedder(10, 'mps', True)
+    node_emb = nodeEmbedder(10, 'mps', False)
     # db = Database(user= config.USER, dbname= config.DBASE)
     # db.connect()
     # x = []
@@ -205,8 +205,11 @@ if __name__ == '__main__':
         x = pickle.load(file)
     print(len(x))
     start_time = time.time()
-    result = node_emb.train_pca(x[:100])
+    # result = node_emb.train_pca(x[:500], 0.99)
+    result = node_emb.batch_processor(x)
     #result = node_emb.reduce_embeddings(result)
+    with open("traindataset/qtrees_embedding.pkl", "wb") as file:
+        pickle.dump(result, file)
     print(time.time() - start_time)
     
 
